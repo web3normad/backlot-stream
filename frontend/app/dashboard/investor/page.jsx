@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from 'react';
-import { Film, Star, TrendingUp, BarChart2, DollarSign, Clock, Award, Users, Info, Loader2 } from 'lucide-react';
+import { Film, Star, BarChart2, DollarSign, Award, Users, Info, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useInvestorData } from '../../hooks/useInvestorData';
-import { formatEth, formatProjectStatus, calculateProgress } from '../../utils/contract';
+import { useProjects } from '../../hooks/useProjects'; // Import the useProjects hook
+import { formatProjectStatus } from '../../utils/contract';
 import { ensureCorrectNetwork } from '../../utils/contract';
 
 export default function InvestorDashboard() {
@@ -15,18 +16,14 @@ export default function InvestorDashboard() {
   // Fetch investor data using the hook
   const { investments, loading, error, refreshInvestorData } = useInvestorData(address);
   
+  // Fetch recommended projects using useProjects hook - filtering for funding projects
+  const { projects: recommendedProjects, loading: projectsLoading } = useProjects('funding');
+  
   // Stats derived from actual investment data
   const totalInvested = investments.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
-  const activeProjects = investments.filter(inv => inv.projectStatus < 3).length; // Not completed or cancelled
+  const activeProjects = investments.filter(inv => inv.projectStatus < 3).length; 
   const avgRoi = investments.length > 0 ? investments.reduce((sum, inv) => sum + (inv.projectStatus >= 2 ? 8.5 : 0), 0) / investments.length : 0;
   
-  // Sample recommended projects - in a real app, these would come from an API or contract
-  const recommendedProjects = [
-    { id: 5, title: "Neon Dreams", genre: "Sci-Fi", funding: 65, daysLeft: 10 },
-    { id: 6, title: "Whispers in the Dark", genre: "Horror", funding: 42, daysLeft: 18 },
-    { id: 7, title: "The Baker's Son", genre: "Drama", funding: 78, daysLeft: 7 },
-  ];
-
   // Connect wallet function
   const connectWallet = async () => {
     setConnecting(true);
@@ -95,7 +92,7 @@ export default function InvestorDashboard() {
       <nav className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-gray-800/80 backdrop-blur-sm">
         <div className="flex items-center space-x-2">
           <Film className="text-pink-500" size={32} />
-          <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-500">BacklotFlix</span>
+          <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-500">BacklotFlix</Link>
         </div>
         <div className="flex items-center space-x-6">
           <Link href="/projects" className="text-gray-300 hover:text-white">Projects</Link>
@@ -285,47 +282,61 @@ export default function InvestorDashboard() {
                 </div>
               </div>
               
-              {/* Recommended Projects */}
+              {/* Recommended Projects - Now using real data */}
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold">Recommended</h2>
-                  <button className="text-sm text-pink-400 hover:text-pink-300">See More</button>
+                  <Link href="/projects" className="text-sm text-pink-400 hover:text-pink-300">See More</Link>
                 </div>
                 
                 <div className="space-y-4">
-                  {recommendedProjects.map((project) => (
-                    <div key={project.id} className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-pink-500/20 hover:border-pink-500/50 transition-all duration-300">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0 h-12 w-12 bg-pink-500/20 rounded-lg flex items-center justify-center mr-4">
-                          <Film className="h-5 w-5 text-pink-400" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-white">{project.title}</h3>
-                          <p className="text-xs text-gray-400 mb-2">{project.genre}</p>
-                          <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
-                            <div 
-                              className="bg-gradient-to-r from-pink-500 to-purple-500 h-1.5 rounded-full" 
-                              style={{ width: `${project.funding}%` }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-400">
-                            <span>{project.funding}% funded</span>
-                            <span>{project.daysLeft} days left</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex space-x-2">
-                        <Link href={`/projects/${project.id}`} className="flex-1">
-                          <button className="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 rounded-lg text-sm font-medium text-white transition-all">
-                            Invest
-                          </button>
-                        </Link>
-                        <button className="px-3 py-2 bg-gray-700/40 hover:bg-gray-700 rounded-lg transition-all">
-                          <Star className="h-4 w-4" />
-                        </button>
-                      </div>
+                  {projectsLoading ? (
+                    <div className="flex justify-center items-center p-10 bg-gray-800/60 backdrop-blur-sm rounded-xl">
+                      <Loader2 className="h-8 w-8 text-pink-500 animate-spin mr-3" />
+                      <p>Loading recommendations...</p>
                     </div>
-                  ))}
+                  ) : recommendedProjects.length === 0 ? (
+                    <div className="flex flex-col justify-center items-center p-10 bg-gray-800/60 backdrop-blur-sm rounded-xl">
+                      <Film className="h-12 w-12 text-gray-500 mb-4" />
+                      <p className="text-lg font-medium mb-2">No projects found</p>
+                      <p className="text-gray-400 text-center">Check back later for new investment opportunities.</p>
+                    </div>
+                  ) : (
+                    // Display up to 3 recommended projects
+                    recommendedProjects.slice(0, 3).map((project) => (
+                      <div key={project.id} className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-pink-500/20 hover:border-pink-500/50 transition-all duration-300">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0 h-12 w-12 bg-pink-500/20 rounded-lg flex items-center justify-center mr-4">
+                            <Film className="h-5 w-5 text-pink-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-white">{project.title}</h3>
+                            <p className="text-xs text-gray-400 mb-2">ID: {project.id}</p>
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
+                              <div 
+                                className="bg-gradient-to-r from-pink-500 to-purple-500 h-1.5 rounded-full" 
+                                style={{ width: `${project.fundingPercentage}%` }}
+                              ></div>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-400">
+                              <span>{project.fundingPercentage}% funded</span>
+                              <span>{project.fundingGoalFormatted} goal</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex space-x-2">
+                          <Link href={`/projects/${project.id}`} className="flex-1">
+                            <button className="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 rounded-lg text-sm font-medium text-white transition-all">
+                              Invest
+                            </button>
+                          </Link>
+                          <button className="px-3 py-2 bg-gray-700/40 hover:bg-gray-700 rounded-lg transition-all">
+                            <Star className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
                 
                 {/* Quick Actions */}

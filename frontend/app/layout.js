@@ -1,8 +1,7 @@
-// app/layout.js
 'use client'
 
 import './globals.css'
-import * as React from 'react'
+import { useState, useEffect } from 'react'
 import '@rainbow-me/rainbowkit/styles.css'
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { WagmiProvider } from 'wagmi'
@@ -20,8 +19,8 @@ const config = getDefaultConfig({
 const queryClient = new QueryClient()
 
 export default function RootLayout({ children }) {
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   return (
     <html lang="en">

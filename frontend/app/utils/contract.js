@@ -3,7 +3,7 @@ import { createPublicClient, createWalletClient, http, custom } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // FilmFund contract address
-export const CONTRACT_ADDRESS = "0x9890eDE1ed09DBe385f5d76efb48CEd75d0891F6";
+export const CONTRACT_ADDRESS = "0xE25Ac5b596871ACC95F33eE1F2c3405F3a347c67";
 
 // Base Sepolia network configuration
 export const networkConfig = {
@@ -566,6 +566,13 @@ export const CONTRACT_ABI = [
   },
   {
     inputs: [],
+    name: "projectsCount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "renounceOwnership",
     outputs: [],
     stateMutability: "nonpayable",
@@ -765,6 +772,17 @@ export const ensureCorrectNetwork = async () => {
   }
 };
 
+export const getProjectsCount = async () => {
+  const publicClient = createPublicClientInstance();
+  const { address, abi } = getContractConfig();
+  
+  return await publicClient.readContract({
+    address,
+    abi,
+    functionName: 'projectsCount',
+  });
+};
+
 // Format status code to readable string
 export const formatProjectStatus = (statusCode) => {
   const statuses = {
@@ -803,7 +821,9 @@ export const shortenAddress = (address) => {
 
 // Format date from timestamp
 export const formatDate = (timestamp) => {
-  return new Date(timestamp * 1000).toLocaleDateString();
+  // If timestamp is in seconds, convert to milliseconds
+  const date = timestamp > 1e12 ? new Date(timestamp) : new Date(timestamp * 1000);
+  return date.toLocaleDateString();
 };
 
 // Calculate funding progress percentage

@@ -151,7 +151,7 @@ export default function CreateProject() {
   
       const success = await createProject(projectData);
       if (success) {
-        router.push('/dashboard');
+        router.push('/projects');
       }
     } catch (err) {
       console.error('Error creating project:', err);

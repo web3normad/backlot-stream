@@ -17,9 +17,9 @@ export default function NavBar({ isCreator = false }) {
     <nav className="relative z-50 flex items-center justify-between px-6 py-4 border-b border-gray-800/80 backdrop-blur-sm">
       <div className="flex items-center space-x-2">
         <Film className={iconColor} size={32} />
-        <span className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${gradient}`}>
-          BacklotFlix
-        </span>
+        <Link href="/" className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${gradient}`}>
+          Backlot
+        </Link>
       </div>
       <div className="flex items-center space-x-6">
         <Link href="/projects" className="text-white hover:text-gray-300 transition-colors">

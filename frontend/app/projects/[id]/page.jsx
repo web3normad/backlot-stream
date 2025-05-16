@@ -7,10 +7,11 @@ import { useProjectDetails } from '../../hooks/useProjectDetails';
 import { useProjects } from '../../hooks/useProjects';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { formatEth } from '../../utils/contract';
+import { shortenAddress } from '../../utils/contract';
 import { createWalletClientInstance, ensureCorrectNetwork } from '../../utils/contract';
 import { parseEther } from 'viem';
 import { getContractConfig } from '../../utils/contract';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function ProjectDetailsPage({ params }) {
   const projectId = params?.id;
@@ -18,7 +19,7 @@ export default function ProjectDetailsPage({ params }) {
   const [imageError, setImageError] = useState(false);
   const { project, loading, error, refreshProject } = useProjectDetails(projectId);
   const { projects: similarProjects } = useProjects('all');
-  
+
   // Investment states
   const [selectedTier, setSelectedTier] = useState(null);
   const [isInvesting, setIsInvesting] = useState(false);
@@ -26,58 +27,32 @@ export default function ProjectDetailsPage({ params }) {
   const [transactionHash, setTransactionHash] = useState(null);
   const [investmentSuccess, setInvestmentSuccess] = useState(false);
 
-  // Debug logs
-  useEffect(() => {
-    console.log("Project details:", {
-      id: project?.id,
-      title: project?.title,
-      description: project?.description,
-      coverImageURI: project?.coverImageURI,
-      fundingGoal: project?.fundingGoal,
-      currentFunding: project?.currentFunding,
-      tierPricing: project?.tierPricing,
-      tierShares: project?.tierShares
-    });
-  }, [project]);
+  const formatCurrency = (value) => {
+    if (value === undefined || value === null) return '0 ETH';
+    try {
+      return `${parseFloat(value).toFixed(4)} ETH`;
+    } catch (error) {
+      return '0 ETH';
+    }
+  };
 
-  // Handle IPFS image URLs with simplified fallback strategy
-
-const getImageUrl = (uri) => {
-  if (!uri) return '/placeholder-image.jpg';
-  
-  // If already a HTTP URL, return as-is
-  if (uri.startsWith('http')) {
+  const getImageUrl = (uri) => {
+    if (!uri) return '/placeholder-project.jpg';
+    if (uri.startsWith('ipfs://')) {
+      return `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
+    }
     return uri;
-  }
-  
-  // Handle IPFS URIs (ipfs://)
-  if (uri.startsWith('ipfs://')) {
-    const cid = uri.replace('ipfs://', '');
-    // Try multiple gateways for reliability
-    return `https://ipfs.io/ipfs/${cid}`;
-   
-  }
-  
-  // Handle raw IPFS hashes (Qm... or bafy...)
-  if (uri.startsWith('Qm') || uri.startsWith('bafy')) {
-    return `https://ipfs.io/ipfs/${uri}`;
-  }
-  
-  // Default fallback
-  return '/placeholder-image.jpg';
-};
+  };
 
-  const coverImageUrl = getImageUrl(project?.coverImageURI);
-
-  // Reset image loading state when project or URL changes
+  // Reset image loading state when project changes
   useEffect(() => {
     setImageLoading(true);
     setImageError(false);
   }, [project?.coverImageURI]);
 
-  // Calculate progress with safety checks
-  const progressPercentage = project?.fundingGoal && parseFloat(project.fundingGoal) > 0
-    ? Math.min(Math.round((parseFloat(project.currentFunding || 0) / parseFloat(project.fundingGoal) * 100)), 100)
+  // Calculate days left (30 days from creation)
+  const daysLeft = project?.statusCode === 0 && project?.createdAt
+    ? Math.max(0, Math.ceil((new Date(project.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
 
   // Filter similar projects (excluding current project)
@@ -85,18 +60,13 @@ const getImageUrl = (uri) => {
     ?.filter(p => p.id !== project?.id)
     ?.slice(0, 2) || [];
 
-  // Calculate days left (30 days from creation)
-  const daysLeft = project?.statusCode === 0 && project?.createdAt
-    ? Math.max(0, Math.ceil((new Date(project.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
-    
   // Function to invest in project
   const investInProject = async () => {
     if (!selectedTier && selectedTier !== 0) {
       setInvestmentError("Please select an investment tier");
       return;
     }
-    
+
     try {
       setIsInvesting(true);
       setInvestmentError(null);
@@ -111,14 +81,8 @@ const getImageUrl = (uri) => {
       const { address: contractAddress, abi } = getContractConfig();
       
       // Get investment amount based on selected tier
-      const tierPricing = project?.tierPricing || [0.1, 0.2, 0.3, 0.5];
-      const investmentAmount = tierPricing[selectedTier]?.toString() || "0.1";
-      
-      console.log("Investing:", {
-        projectId, 
-        tier: selectedTier, 
-        amount: investmentAmount
-      });
+      const tierPricing = project?.tierPricing || ["0.1", "0.2", "0.3", "0.5"];
+      const investmentAmount = tierPricing[selectedTier] || "0.1";
       
       // Call contract's investInProject function
       const hash = await walletClient.writeContract({
@@ -130,9 +94,6 @@ const getImageUrl = (uri) => {
       });
       
       setTransactionHash(hash);
-      console.log("Transaction submitted:", hash);
-      
-      // Show success message
       setInvestmentSuccess(true);
       
       // Refresh project data after a short delay
@@ -174,7 +135,7 @@ const getImageUrl = (uri) => {
       </div>
     );
   }
-  
+
   if (error || !project) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
@@ -191,18 +152,11 @@ const getImageUrl = (uri) => {
   }
 
   // Get tier data for display
-  const tierData = (!project?.tierPricing || project.tierPricing.length === 0) ? 
-    [
-      { price: "0.1", shares: 10, name: "Bronze" },
-      { price: "0.2", shares: 25, name: "Silver" },
-      { price: "0.3", shares: 50, name: "Gold" },
-      { price: "0.5", shares: 100, name: "Platinum" }
-    ] : 
-    project.tierPricing.map((price, index) => ({
-      price: price.toString(),
-      shares: project.tierShares?.[index] || 0,
-      name: index === 0 ? "Bronze" : index === 1 ? "Silver" : index === 2 ? "Gold" : "Platinum"
-    }));
+  const tierData = project.tierPricing.map((price, index) => ({
+    price: price.toString(),
+    shares: project.tierShares?.[index] || 0,
+    name: index === 0 ? "Bronze" : index === 1 ? "Silver" : index === 2 ? "Gold" : "Platinum"
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
@@ -213,7 +167,7 @@ const getImageUrl = (uri) => {
         <div className="absolute bottom-20 left-20 w-80 h-80 bg-blue-500 rounded-full filter blur-3xl animate-blob animation-delay-4000"></div>
         <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-pink-500 rounded-full filter blur-3xl animate-blob animation-delay-6000"></div>
       </div>
-      
+
       <NavBar />
       
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-10">
@@ -263,24 +217,31 @@ const getImageUrl = (uri) => {
                 </div>
               )}
               <img 
-                src={coverImageUrl}
-                alt={project?.title || "Project Image"}
+                src={getImageUrl(project.coverImageURI)}
+                alt={project.title}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 onLoad={() => setImageLoading(false)}
                 onError={(e) => {
-                  console.error("Image failed to load:", coverImageUrl);
-                  e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = '/placeholder-image.jpg';
+                  e.target.onerror = null;
+                  e.target.src = '/placeholder-project.jpg';
                   setImageLoading(false);
+                  setImageError(true);
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
               <div className="absolute top-4 left-4 flex gap-2">
-                <span className="bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  {project?.status || "Funding"}
+                <span className={`
+                  text-white text-xs font-bold px-3 py-1 rounded-full
+                  ${project.status === 'Funding' ? 'bg-blue-500/80' : ''}
+                  ${project.status === 'Production' ? 'bg-yellow-500/80' : ''}
+                  ${project.status === 'Streaming' ? 'bg-green-500/80' : ''}
+                  ${project.status === 'Completed' ? 'bg-purple-500/80' : ''}
+                  ${project.status === 'Cancelled' ? 'bg-red-500/80' : ''}
+                `}>
+                  {project.status}
                 </span>
               </div>
-              {project?.statusCode === 0 && daysLeft > 0 && (
+              {project.statusCode === 0 && daysLeft > 0 && (
                 <div className="absolute top-4 right-4 bg-gray-900/80 text-white text-xs font-medium px-3 py-1 rounded-full flex items-center">
                   <Clock size={14} className="mr-1" /> 
                   {daysLeft} days left
@@ -291,41 +252,54 @@ const getImageUrl = (uri) => {
           
           <div className="lg:w-1/3">
             <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-pink-500/20 h-full">
-              <h1 className="text-3xl font-bold mb-2">{project?.title || "Lost in Translation"}</h1>
-              <p className="text-gray-300 mb-6">{project?.description || "A story of the african child"}</p>
+              <h1 className="text-3xl font-bold mb-2">{project.title}</h1>
+              <p className="text-gray-300 mb-6">{project.description}</p>
               
               <div className="flex items-center text-gray-300 text-sm mb-6">
                 <Star size={16} className="text-yellow-500 mr-1" />
-                <span className="mr-3">Created by {project?.creator ? `${project.creator.slice(0, 6)}...${project.creator.slice(-4)}` : "Anonymous"}</span>
+                <span className="mr-3">Created by {shortenAddress(project.creator)}</span>
+                <span className="text-gray-400">
+                  {formatDistanceToNow(project.createdAt, { addSuffix: true })}
+                </span>
               </div>
               
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-300">{project?.currentFunding || "0"} ETH raised</span>
-                  <span className="text-gray-300">{project?.fundingGoal || "1"} ETH goal</span>
+                  <span className="text-gray-300">{formatCurrency(project.currentFunding)} raised</span>
+                  <span className="text-gray-300">{formatCurrency(project.fundingGoal)} goal</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2.5 mb-1">
                   <div 
                     className="bg-gradient-to-r from-pink-500 to-purple-500 h-2.5 rounded-full" 
-                    style={{ width: `${progressPercentage}%` }}
+                    style={{ width: `${project.fundingPercentage}%` }}
                   ></div>
                 </div>
                 <div className="text-right text-sm text-gray-300">
-                  <span className="text-white font-medium">{progressPercentage}%</span> funded
+                  <span className="text-white font-medium">{Math.round(project.fundingPercentage)}%</span> funded
                 </div>
               </div>
+
+              {project.streamingRevenue && parseFloat(project.streamingRevenue) > 0 && (
+                <div className="mb-6 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-center">
+                    <TrendingUp size={16} className="text-green-400 mr-2" />
+                    <span className="text-green-400 font-medium">Streaming Revenue</span>
+                  </div>
+                  <div className="text-xl font-bold text-white mt-1">{formatCurrency(project.streamingRevenue)}</div>
+                </div>
+              )}
               
               <button 
                 className={`w-full py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 rounded-lg font-medium text-white transition-all mb-4 ${isInvesting ? 'opacity-70 cursor-not-allowed' : ''}`}
                 onClick={investInProject}
-                disabled={isInvesting || !selectedTier && selectedTier !== 0 || project?.statusCode !== 0}
+                disabled={isInvesting || !selectedTier && selectedTier !== 0 || project.statusCode !== 0}
               >
                 {isInvesting ? (
                   <span className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     Processing...
                   </span>
-                ) : project?.statusCode !== 0 ? 
+                ) : project.statusCode !== 0 ? 
                   "Funding Closed" : 
                   selectedTier !== null ? 
                   `Invest ${tierData[selectedTier]?.price || "0.1"} ETH` : 
@@ -349,35 +323,43 @@ const getImageUrl = (uri) => {
           <div className="lg:col-span-2">
             <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-pink-500/20 mb-8">
               <h2 className="text-2xl font-bold mb-4">Storyline</h2>
-              <p className="text-gray-300">{project?.description || "A story of the african child"}</p>
+              <p className="text-gray-300">{project.description}</p>
             </div>
             
             <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-pink-500/20">
-              <h2 className="text-2xl font-bold mb-4">Investment Details</h2>
+              <h2 className="text-2xl font-bold mb-4">Project Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-700/30 rounded-lg">
                   <h3 className="font-medium">Total Shares</h3>
-                  <p className="text-sm text-gray-400">{project?.totalShares || 1000}</p>
+                  <p className="text-sm text-gray-400">{project.totalShares}</p>
                 </div>
                 <div className="p-3 bg-gray-700/30 rounded-lg">
                   <h3 className="font-medium">Shares Available</h3>
-                  <p className="text-sm text-gray-400">{project?.remainingShares || 1000}</p>
+                  <p className="text-sm text-gray-400">{project.remainingShares}</p>
                 </div>
                 <div className="p-3 bg-gray-700/30 rounded-lg">
                   <h3 className="font-medium">Project Status</h3>
-                  <p className="text-sm text-gray-400">{project?.status || "Funding"}</p>
+                  <p className="text-sm text-gray-400">{project.status}</p>
                 </div>
                 <div className="p-3 bg-gray-700/30 rounded-lg">
                   <h3 className="font-medium">Created On</h3>
                   <p className="text-sm text-gray-400">
-                    {project?.createdAt ? 
-                      new Date(project.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      }) : 
-                      "Unknown date"}
+                    {project.createdAt.toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
                   </p>
+                </div>
+                {project.streamingRevenue && parseFloat(project.streamingRevenue) > 0 && (
+                  <div className="p-3 bg-gray-700/30 rounded-lg">
+                    <h3 className="font-medium">Streaming Revenue</h3>
+                    <p className="text-sm text-gray-400">{formatCurrency(project.streamingRevenue)}</p>
+                  </div>
+                )}
+                <div className="p-3 bg-gray-700/30 rounded-lg">
+                  <h3 className="font-medium">Creator</h3>
+                  <p className="text-sm text-gray-400">{shortenAddress(project.creator)}</p>
                 </div>
               </div>
             </div>
@@ -415,7 +397,7 @@ const getImageUrl = (uri) => {
                             e.stopPropagation();
                             investInProject();
                           }}
-                          disabled={isInvesting}
+                          disabled={isInvesting || project.statusCode !== 0}
                         >
                           Confirm
                         </button>
