@@ -8,13 +8,18 @@ import { baseSepolia } from 'wagmi/chains'
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query"
 import { http } from 'viem'
 
+// Validate the project ID exists
+if (!process.env.NEXT_PUBLIC_WALLETCONNECT_ID) {
+  throw new Error('Missing NEXT_PUBLIC_WALLETCONNECT_ID environment variable')
+}
+
 const config = getDefaultConfig({
   appName: 'BacklotFlix',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_ID || '80d1d89635867e1c1384e1edf1f6b14e',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_ID, 
   chains: [baseSepolia],
   ssr: true,
   transports: {
-    [baseSepolia.id]: http()
+    [baseSepolia.id]: http(process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL) 
   }
 })
 

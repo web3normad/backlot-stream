@@ -1,0 +1,15 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+	<title>Backlot-logo</title>
+	<style>
+		tspan { white-space:pre } 
+		.s0 { fill: #c53b29 } 
+		.t1 { font-size: 139px;fill: #d21d1d;font-weight: 400;font-family: "Captureit2", "Capture it 2" } 
+	</style>
+	<path class="s0" d="m427.3 516.1h-120.3v-80.1h120.3c22.1 0 40.1 17.9 40.1 40.1 0 22.1-18 40-40.1 40z"/>
+	<g id="Layer 1">
+		<text id="Backlot" style="transform: matrix(1.242,0,0,1.242,484.469,535.177)" >
+			<tspan x="0" y="0" class="t1">B</tspan><tspan  y="0" class="t1">a</tspan><tspan  y="0" class="t1">c</tspan><tspan  y="0" class="t1">k</tspan><tspan  y="0" class="t1">l</tspan><tspan  y="0" class="t1">o</tspan><tspan  y="0" class="t1">t
+</tspan>
+		</text>
+	</g>
+</svg>
