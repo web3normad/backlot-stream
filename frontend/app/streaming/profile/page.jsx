@@ -1,15 +1,14 @@
-// app/streaming/profile/page.jsx
 'use client'
 
 import { useState } from 'react'
-import { User, Settings, Heart, Clock, Film, Star, Download, CreditCard, LogOut } from 'lucide-react'
+import { User, Settings, Heart, Clock, Film, Star, CreditCard, LogOut } from 'lucide-react'
 import Link from 'next/link'
-import NavBar from '@/components/NavBar'
-import Footer from '@/components/Footer'
+import NavBar from '../../components/NavBar'
+import Footer from '../../components/Footer'
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('watchlist')
-  const [subscriptionPlan, setSubscriptionPlan] = useState('premium') // 'none', 'basic', 'premium', 'investor'
+  const [subscriptionPlan, setSubscriptionPlan] = useState('premium') 
   
   // Sample data
   const watchlist = [
