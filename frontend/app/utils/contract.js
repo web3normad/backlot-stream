@@ -3,7 +3,7 @@ import { createPublicClient, createWalletClient, http, custom } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // FilmFund contract address
-export const CONTRACT_ADDRESS = "0xE25Ac5b596871ACC95F33eE1F2c3405F3a347c67";
+export const CONTRACT_ADDRESS = "0xcc892B793d5e0882394A36fd926247d278a4ccd0";
 
 // Base Sepolia network configuration
 export const networkConfig = {

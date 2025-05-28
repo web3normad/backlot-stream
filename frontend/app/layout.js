@@ -16,6 +16,8 @@ const config = getDefaultConfig({
   ssr: true,
 })
 
+
+
 const queryClient = new QueryClient()
 
 export default function RootLayout({ children }) {
